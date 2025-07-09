@@ -1,5 +1,3 @@
-
 streamlit
+pydeck
 numpy
-matplotlib
-pillow
