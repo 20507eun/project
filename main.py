@@ -1,118 +1,99 @@
+# 자연현상 시각화 웹서비스 - Streamlit 기반
+# 필요한 라이브러리: streamlit, matplotlib, plotly, numpy
+
 import streamlit as st
-import pydeck as pdk
 import numpy as np
-import time
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
-st.title("3D 판 구조론 시뮬레이션")
+st.set_page_config(page_title="자연 현상 시뮬레이터", layout="wide")
+st.title("🌀 자연 현상 시뮬레이션 도구")
 
-# 사용자 입력
-st.sidebar.header("판 이동 조건 설정")
+# 사이드바 메뉴 구성
+category = st.sidebar.selectbox("자연 현상 카테고리 선택", ["판의 경계", "지구 내부 구조", "기상 현상과 대기 순환"])
 
-speed1 = st.sidebar.slider("판 1 속도 (cm/년)", 0.0, 10.0, 5.0)
-speed2 = st.sidebar.slider("판 2 속도 (cm/년)", 0.0, 10.0, 5.0)
+# 판의 경계 시뮬레이션 함수
+def simulate_plate_boundary():
+    boundary_type = st.selectbox("판 경계 유형 선택", ["발산형 경계", "수렴형 경계", "보존형 경계"])
 
-direction1 = st.sidebar.selectbox("판 1 방향", ["왼쪽 → 오른쪽", "오른쪽 → 왼쪽"])
-direction2 = st.sidebar.selectbox("판 2 방향", ["왼쪽 → 오른쪽", "오른쪽 → 왼쪽"])
+    if boundary_type == "발산형 경계":
+        st.markdown("### 🟦 발산형 경계: 판이 서로 멀어지는 현상")
+        fig, ax = plt.subplots()
+        x = np.linspace(-10, 10, 100)
+        y1 = np.tanh(x)
+        y2 = -np.tanh(x)
+        ax.plot(x, y1, 'r', label='판 A')
+        ax.plot(x, y2, 'b', label='판 B')
+        ax.set_title("발산하는 판의 시각화")
+        ax.legend()
+        st.pyplot(fig)
 
-boundary_type = st.sidebar.selectbox("판 경계 유형", ["발산", "수렴", "보존"])
+    elif boundary_type == "수렴형 경계":
+        st.markdown("### 🔻 수렴형 경계: 판이 서로 충돌하여 밀려나는 현상")
+        fig, ax = plt.subplots()
+        x = np.linspace(-5, 5, 100)
+        y1 = -np.abs(x) + 5
+        ax.fill_between(x, y1, color='orange')
+        ax.set_title("수렴하는 판의 충돌")
+        st.pyplot(fig)
 
-def dir_to_sign(d):
-    return 1 if d == "왼쪽 → 오른쪽" else -1
+    else:
+        st.markdown("### ↔ 보존형 경계: 수평으로 이동하는 판")
+        angle = st.slider("판 이동 방향 (도)", 0, 360, 45)
+        fig, ax = plt.subplots()
+        ax.quiver(0, 0, np.cos(np.radians(angle)), np.sin(np.radians(angle)), scale=1, scale_units='xy', angles='xy')
+        ax.quiver(0, 0, -np.cos(np.radians(angle)), -np.sin(np.radians(angle)), color='r', scale=1, scale_units='xy', angles='xy')
+        ax.set_xlim(-2, 2)
+        ax.set_ylim(-2, 2)
+        ax.set_aspect('equal')
+        ax.set_title("보존형 경계의 상대 이동 방향")
+        st.pyplot(fig)
 
-v1 = speed1 * dir_to_sign(direction1)
-v2 = speed2 * dir_to_sign(direction2)
+# 지구 내부 구조 시뮬레이션 함수
+def simulate_earth_layers():
+    st.markdown("### 🌍 지구 내부 구조 시각화")
+    layer_names = ['내핵', '외핵', '맨틀', '지각']
+    layer_radii = [1, 2, 3.5, 4]  # 임의 단위
+    colors = ['red', 'orange', 'blue', 'gray']
 
-# 초기 위치 (x좌표 기준)
-pos1 = 0
-pos2 = 10
+    fig, ax = plt.subplots()
+    for i in range(len(layer_radii)-1, -1, -1):
+        circle = plt.Circle((0, 0), layer_radii[i], color=colors[i], label=layer_names[i])
+        ax.add_artist(circle)
+    ax.set_xlim(-4.5, 4.5)
+    ax.set_ylim(-4.5, 4.5)
+    ax.set_aspect('equal')
+    ax.set_title("지구 내부 구조 단면도")
+    ax.legend()
+    st.pyplot(fig)
 
-# 판 크기
-plate_length = 4
-plate_height = 1
-plate_depth = 2
+# 기상 현상 시뮬레이션 함수
+def simulate_weather_fronts():
+    front_type = st.selectbox("기상 현상 선택", ["온난 전선", "한랭 전선", "정체 전선", "폐색 전선"])
 
-# 판을 나타내는 박스 생성 함수
-def create_plate(x, color):
-    # pydeck의 CubeLayer에 맞게 박스 좌표 설정
-    return {
-        "position": [x, 0, 0],
-        "color": color,
-        "dimensions": [plate_length, plate_height, plate_depth]
-    }
+    st.markdown(f"### ☁️ {front_type} 시각화")
+    x = np.linspace(0, 10, 100)
+    y_hot = np.sin(x)
+    y_cold = np.cos(x)
 
-# 애니메이션 프레임 생성 함수
-def generate_frames(frames=100):
-    positions1 = np.zeros(frames)
-    positions2 = np.zeros(frames)
-    positions1[0] = pos1
-    positions2[0] = pos2
+    fig = go.Figure()
+    if front_type == "온난 전선":
+        fig.add_trace(go.Scatter(x=x, y=y_hot, mode='lines', line=dict(color='red'), name='따뜻한 공기'))
+        fig.add_trace(go.Scatter(x=x, y=y_cold - 1, mode='lines', line=dict(color='blue'), name='차가운 공기'))
+    elif front_type == "한랭 전선":
+        fig.add_trace(go.Scatter(x=x, y=y_cold, mode='lines', line=dict(color='blue'), name='차가운 공기'))
+        fig.add_trace(go.Scatter(x=x, y=y_hot + 1, mode='lines', line=dict(color='red'), name='따뜻한 공기'))
+    else:
+        fig.add_trace(go.Scatter(x=x, y=y_hot, mode='lines', line=dict(color='red', dash='dot'), name='따뜻한 공기'))
+        fig.add_trace(go.Scatter(x=x, y=y_cold, mode='lines', line=dict(color='blue', dash='dot'), name='차가운 공기'))
 
-    dt = 0.1
-    for t in range(1, frames):
-        positions1[t] = positions1[t-1] + v1 * dt
-        positions2[t] = positions2[t-1] + v2 * dt
-    return positions1, positions2
+    fig.update_layout(height=400, width=800, title=f"{front_type} 애니메이션 표현", xaxis_title="거리", yaxis_title="고도")
+    st.plotly_chart(fig)
 
-positions1, positions2 = generate_frames()
-
-# Deck.gl CubeLayer 설정
-def create_deck_layer(x1, x2):
-    data = [
-        create_plate(x1, [0, 128, 255]),  # 파란 판 1
-        create_plate(x2, [255, 64, 64])    # 빨간 판 2
-    ]
-
-    layer = pdk.Layer(
-        "CubeLayer",
-        data=data,
-        get_position="position",
-        get_color="color",
-        get_dimensions="dimensions",
-        pickable=True,
-        auto_highlight=True,
-        opacity=0.8,
-        wireframe=True,
-    )
-    return layer
-
-# 뷰 설정 (3D 카메라)
-view_state = pdk.ViewState(
-    longitude=0,
-    latitude=0,
-    zoom=12,
-    pitch=45,
-    bearing=0
-)
-
-# 시뮬레이션 애니메이션
-plot_placeholder = st.empty()
-
-for t in range(len(positions1)):
-    layer = create_deck_layer(positions1[t], positions2[t])
-
-    r = pdk.Deck(
-        layers=[layer],
-        initial_view_state=view_state,
-        map_style=None,
-        tooltip={"text": "판 구조 시뮬레이션"}
-    )
-
-    plot_placeholder.pydeck_chart(r)
-
-    # 충돌 간단 감지 및 진동 효과 (수렴 경계일 때)
-    if boundary_type == "수렴":
-        dist = abs(positions2[t] - positions1[t])
-        if dist < plate_length:
-            # 진동 애니메이션 (판 위치 약간 흔들기)
-            offset = 0.1 * np.sin(t * 10)
-            positions1[t] += offset
-            positions2[t] -= offset
-
-    time.sleep(0.05)
-
-st.markdown("""
-### 판 경계 유형 설명
-- 발산: 판들이 서로 멀어지는 경계
-- 수렴: 판들이 서로 충돌하는 경계 (진동, 지진 효과 포함)
-- 보존: 판들이 옆으로 미끄러지듯 움직이는 경계
-""")
+# 카테고리에 따른 시뮬레이션 호출
+if category == "판의 경계":
+    simulate_plate_boundary()
+elif category == "지구 내부 구조":
+    simulate_earth_layers()
+else:
+    simulate_weather_fronts()
